@@ -11,13 +11,13 @@ set -e
 
 SERVER_USER="xinatory"
 SERVER_PORT="6767"
-SERVER_PASS="111qqq111"
+SERVER_PASS="zaq12wsxcde3"
 REMOTE_DIR="/home/xinatory/electro-dnevnik-backend"
 
-# Определение рабочего IP (Tailscale или локальный LAN)
-if ping -c 1 -W 2 100.71.166.18 >/dev/null 2>&1; then
+# Определение доступного адреса для SSH (Tailscale или LAN)
+if nc -z -w 2 100.71.166.18 "$SERVER_PORT" 2>/dev/null; then
     SERVER_IP="100.71.166.18"
-elif ping -c 1 -W 2 192.168.1.80 >/dev/null 2>&1; then
+elif nc -z -w 2 192.168.1.80 "$SERVER_PORT" 2>/dev/null; then
     SERVER_IP="192.168.1.80"
 else
     SERVER_IP="100.71.166.18"

@@ -1,8 +1,20 @@
-export async function onRequest() {
+export async function onRequest(context: any) {
+  const backendUrl = context.env.BACKEND_API_URL || 'https://suspose.tailcfe40a.ts.net';
+  let backendStatus = 'unknown';
+
+  try {
+    const resp = await fetch(`${backendUrl}/api/eschools/test`, { method: 'GET' });
+    backendStatus = resp.ok ? 'connected' : `http_${resp.status}`;
+  } catch (e: any) {
+    backendStatus = `error: ${e.message}`;
+  }
+
   return new Response(
     JSON.stringify({
       success: true,
-      message: 'Cloudflare Pages Edge API is active',
+      edge: 'Cloudflare Pages Active',
+      backendUrl,
+      backendStatus,
       timestamp: new Date().toISOString(),
     }),
     {

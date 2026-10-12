@@ -9,7 +9,7 @@ export async function onRequestOptions() {
 }
 
 export async function onRequestPost(context: any) {
-  const backendUrl = context.env.BACKEND_API_URL || 'http://100.71.166.18:3000';
+  const backendUrl = context.env.BACKEND_API_URL || 'https://suspose.tailcfe40a.ts.net';
   try {
     const body = await context.request.text();
     const targetUrl = `${backendUrl}/api/eschools/sync`;

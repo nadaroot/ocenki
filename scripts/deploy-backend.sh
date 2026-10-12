@@ -14,13 +14,13 @@ SERVER_PORT="6767"
 SERVER_PASS="zaq12wsxcde3"
 REMOTE_DIR="/home/xinatory/electro-dnevnik-backend"
 
-# Определение доступного адреса для SSH (Tailscale или LAN)
-if nc -z -w 2 100.71.166.18 "$SERVER_PORT" 2>/dev/null; then
-    SERVER_IP="100.71.166.18"
-elif nc -z -w 2 192.168.1.80 "$SERVER_PORT" 2>/dev/null; then
+# Определение доступного адреса для SSH (LAN или Tailscale)
+if nc -z -G 2 192.168.1.80 "$SERVER_PORT" 2>/dev/null; then
     SERVER_IP="192.168.1.80"
-else
+elif nc -z -G 2 100.71.166.18 "$SERVER_PORT" 2>/dev/null; then
     SERVER_IP="100.71.166.18"
+else
+    SERVER_IP="192.168.1.80"
 fi
 
 echo "=== [1/4] Подготовка к деплою на сервер: $SERVER_USER@$SERVER_IP:$SERVER_PORT ==="
@@ -28,9 +28,9 @@ echo "=== [1/4] Подготовка к деплою на сервер: $SERVER_
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-# Проверка сборки перед отправкой
-echo "=== [2/4] Проверка сборки проекта ==="
-npm run build
+# Быстрая проверка типов перед отправкой
+echo "=== [2/4] Проверка целостности исходного кода ==="
+npx tsc --noEmit
 
 echo "=== [3/4] Упаковка и синхронизация файлов на сервер ==="
 
@@ -55,20 +55,24 @@ if pid == 0:
 else:
     output = b''
     while True:
-        r, _, _ = select.select([fd], [], [], 10)
+        r, _, _ = select.select([fd], [], [], 15)
         if not r:
             break
-        data = os.read(fd, 1024)
-        if not data:
+        try:
+            data = os.read(fd, 1024)
+            if not data:
+                break
+            output += data
+            if b'password:' in output.lower():
+                time.sleep(0.3)
+                os.write(fd, b'$SERVER_PASS\n')
+        except OSError:
             break
-        output += data
-        if b'password:' in output.lower():
-            time.sleep(0.3)
-            os.write(fd, b'$SERVER_PASS\n')
     os.close(fd)
     _, status = os.waitpid(pid, 0)
     if status != 0:
         print("Ошибка передачи по SCP. Статус:", status)
+        sys.exit(1)
 EOF
 
 echo "=== [4/4] Запуск сервиса на сервере через Docker Compose ==="
@@ -92,20 +96,36 @@ if pid == 0:
     os.execvp('ssh', cmd)
 else:
     output = b''
+    last_data_time = time.time()
     while True:
-        r, _, _ = select.select([fd], [], [], 15)
-        if not r:
-            break
-        data = os.read(fd, 1024)
-        if not data:
-            break
-        output += data
-        if b'password:' in output.lower():
-            time.sleep(0.3)
-            os.write(fd, b'$SERVER_PASS\n')
+        r, _, _ = select.select([fd], [], [], 2)
+        if r:
+            try:
+                data = os.read(fd, 4096)
+                if not data:
+                    break
+                sys.stdout.write(data.decode('utf-8', errors='replace'))
+                sys.stdout.flush()
+                output += data
+                last_data_time = time.time()
+                if b'password:' in data.lower():
+                    time.sleep(0.3)
+                    os.write(fd, b'$SERVER_PASS\n')
+            except OSError:
+                break
+        else:
+            # Check if process is still running
+            res = os.waitpid(pid, os.WNOHANG)
+            if res != (0, 0):
+                break
+            if time.time() - last_data_time > 300:
+                print("Таймаут выполнения команды на сервере (300с)")
+                break
     os.close(fd)
     _, status = os.waitpid(pid, 0)
-    print(output.decode('utf-8', errors='replace'))
+    if status != 0:
+        print("Ошибка запуска на сервере. Код завершения:", status)
+        sys.exit(1)
 EOF
 
 echo "=== Деплой бэкенда завершен ==="

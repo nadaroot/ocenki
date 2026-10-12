@@ -18,6 +18,8 @@ import { TargetModal } from '@/components/Subjects/TargetModal';
 import { GoalsTargetTab } from '@/components/Goals/GoalsTargetTab';
 import { IosInstallPrompt } from '@/components/PWA/IosInstallPrompt';
 import { LoginForm } from '@/components/Auth/LoginForm';
+import { ConstellationBackground } from '@/components/Auth/ConstellationBackground';
+import { ThemeBackground } from '@/components/Themes/ThemeBackground';
 import {
   DiaryData,
   SubjectItem,
@@ -63,33 +65,6 @@ export default function HomePage() {
   // Ref для отслеживания предыдущих отметок при 5-минутной автопроверке
   const prevSubjectsRef = useRef<SubjectItem[]>([]);
 
-  // Восстановление сессии и настроек при старте
-  useEffect(() => {
-    try {
-      const saved = loadSavedDiaryData();
-      const currentSettings = loadSettings();
-      const loadedAccounts = loadSavedAccounts();
-      const storedTargets = loadCustomTargets();
-
-      setSettings(currentSettings);
-      setSavedAccounts(loadedAccounts);
-
-      if (saved) {
-        // Применяем сохраненные ручные цели
-        if (storedTargets && saved.subjects) {
-          saved.subjects = saved.subjects.map((s) => ({
-            ...s,
-            targetGrade: storedTargets[s.id] || s.targetGrade,
-          }));
-        }
-        setDiaryData(saved);
-        prevSubjectsRef.current = saved.subjects || [];
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
   const showToast = useCallback((text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => {
@@ -98,12 +73,15 @@ export default function HomePage() {
   }, []);
 
   // Авторизация и первичная загрузка данных с e-schools.by
-  const handleLogin = async (credentials: {
+  const handleLogin = useCallback(async (credentials: {
     login: string;
     password?: string;
     subdomain?: string;
     sessionCookie?: string;
   }) => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('explicit_logout');
+    }
     setIsSyncing(true);
     setLoginError(null);
 
@@ -150,7 +128,7 @@ export default function HomePage() {
       setSettings(newSettings);
       saveSettings(newSettings);
 
-      // Сохраняем в список мультиаккаунтов
+      // Сохраняем в список мультиаккаунтов с паролем для быстрого повторного входа
       const accountToSave: SavedAccount = {
         id: `acc_${credentials.login.toLowerCase()}`,
         login: credentials.login,
@@ -173,7 +151,44 @@ export default function HomePage() {
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [showToast]);
+
+  // Восстановление сессии и настроек при старте
+  useEffect(() => {
+    try {
+      const saved = loadSavedDiaryData();
+      const currentSettings = loadSettings();
+      const loadedAccounts = loadSavedAccounts();
+      const storedTargets = loadCustomTargets();
+
+      setSettings(currentSettings);
+      setSavedAccounts(loadedAccounts);
+
+      if (saved) {
+        // Применяем сохраненные ручные цели
+        if (storedTargets && saved.subjects) {
+          saved.subjects = saved.subjects.map((s) => ({
+            ...s,
+            targetGrade: storedTargets[s.id] || s.targetGrade,
+          }));
+        }
+        setDiaryData(saved);
+        prevSubjectsRef.current = saved.subjects || [];
+      } else if (loadedAccounts.length > 0 && typeof window !== 'undefined') {
+        const explicitLogout = sessionStorage.getItem('explicit_logout');
+        if (!explicitLogout && loadedAccounts[0].login && loadedAccounts[0].password) {
+          // Быстрый вход для повторного пользователя
+          handleLogin({
+            login: loadedAccounts[0].login,
+            password: loadedAccounts[0].password,
+            sessionCookie: loadedAccounts[0].sessionCookie,
+          });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [handleLogin]);
 
   // Тихая фоновая автопроверка раз в 5 минут
   useEffect(() => {
@@ -402,6 +417,9 @@ export default function HomePage() {
   };
 
   const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('explicit_logout', 'true');
+    }
     clearAllData();
     setDiaryData(null);
     setLoginError(null);
@@ -420,22 +438,25 @@ export default function HomePage() {
     diaryData?.profile?.studentName?.toLowerCase().includes('шипалов') ||
     settings?.login?.toLowerCase() === 'd_shipalov';
 
-  // ЭКРАН АВТОРИЗАЦИИ (Чистый OLED черный, без фоновых канвасов)
+  // ЭКРАН АВТОРИЗАЦИИ (Созвездия и мерцающие звезды на OLED черном фоне)
   if (!diaryData) {
     return (
       <div className="relative min-h-screen bg-black text-zinc-100 flex items-center justify-center overflow-hidden">
+        <ConstellationBackground />
         <LoginForm
           onLogin={handleLogin}
           isLoading={isSyncing}
           errorMessage={loginError}
+          savedAccounts={savedAccounts}
         />
       </div>
     );
   }
 
-  // ОСНОВНОЙ ЭКРАН ДНЕВНИКА (Чистый, стильный темный интерфейс)
+  // ОСНОВНОЙ ЭКРАН ДНЕВНИКА (Чистый, стильный темный интерфейс со звездами)
   return (
     <div className="relative min-h-screen bg-black text-zinc-100 flex flex-col md:flex-row antialiased selection:bg-zinc-800">
+      <ThemeBackground themeId="space" disableBackground={false} softBlur={true} />
       {/* Десктопный сайдбар */}
       <Sidebar
         activeTab={activeTab}

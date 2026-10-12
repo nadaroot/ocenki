@@ -26,6 +26,47 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Если работаем на Vercel или явно включен прокси, перенаправляем запрос на сервер в Беларуси
+    const isVercel = Boolean(process.env.VERCEL);
+    const backendUrl = process.env.BACKEND_API_URL || (isVercel ? 'https://suspose.tailcfe40a.ts.net' : null);
+
+    if (backendUrl) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 25000);
+        const resp = await fetch(`${backendUrl}/api/eschools/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        const proxyData = await resp.json().catch(() => ({
+          success: false,
+          error: 'Некорректный ответ от бэкенд-сервера',
+        }));
+
+        return NextResponse.json(proxyData, {
+          status: resp.status,
+          headers: CORS_HEADERS,
+        });
+      } catch (proxyErr: any) {
+        console.error('Ошибка связи с белорусским бэкендом:', proxyErr);
+        if (isVercel) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Шлюз синхронизации в РБ временно недоступен: ' + (proxyErr.message || 'Таймаут соединения'),
+            },
+            { status: 502, headers: CORS_HEADERS }
+          );
+        }
+      }
+    }
+
     const client = new ESchoolsClient(subdomain, sessionCookie);
 
     let activeSession = sessionCookie;

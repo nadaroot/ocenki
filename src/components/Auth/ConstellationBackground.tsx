@@ -254,13 +254,22 @@ export const ConstellationBackground: React.FC = () => {
     if (!ctx) return;
 
     let animationId: number;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
 
     const handleResize = () => {
       if (!canvas) return;
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
     };
 
     window.addEventListener('resize', handleResize);
@@ -325,8 +334,8 @@ export const ConstellationBackground: React.FC = () => {
       });
     }
 
-    // Фоновые одиночные звезды
-    const BG_STARS_COUNT = isMobile ? 65 : 120;
+    // Фоновые одиночные звезды (увеличено для отличной видимости на телефонах)
+    const BG_STARS_COUNT = isMobile ? 85 : 140;
     const bgStars: BackgroundStar[] = [];
     for (let i = 0; i < BG_STARS_COUNT; i++) {
       bgStars.push({
@@ -334,8 +343,8 @@ export const ConstellationBackground: React.FC = () => {
         y: Math.random() * height,
         vx: (Math.random() - 0.5) * 0.08,
         vy: (Math.random() - 0.5) * 0.08,
-        radius: Math.random() * 1.1 + 0.35,
-        alpha: Math.random() * 0.45 + 0.15,
+        radius: Math.random() * 1.2 + 0.45,
+        alpha: Math.random() * 0.5 + 0.25,
         speedAlpha: (Math.random() * 0.008 + 0.003) * (Math.random() > 0.5 ? 1 : -1),
       });
     }
@@ -405,8 +414,8 @@ export const ConstellationBackground: React.FC = () => {
         });
 
         // Связки (тонкие линии)
-        ctx.lineWidth = 0.7;
-        ctx.strokeStyle = 'rgba(235, 235, 245, 0.22)';
+        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = 'rgba(235, 235, 245, 0.28)';
 
         for (let lIdx = 0; lIdx < c.links.length; lIdx++) {
           const [fromIdx, toIdx] = c.links[lIdx];
@@ -424,16 +433,16 @@ export const ConstellationBackground: React.FC = () => {
         // Звезды
         for (let sIdx = 0; sIdx < starPoints.length; sIdx++) {
           const p = starPoints[sIdx];
-          const alpha = Math.max(0.35, Math.min(0.95, p.baseAlpha + p.twinkle));
-          const radius = p.isMajor ? 2.3 : 1.6;
+          const alpha = Math.max(0.4, Math.min(1.0, p.baseAlpha + p.twinkle));
+          const radius = p.isMajor ? 2.5 : 1.7;
 
           if (p.isMajor) {
-            const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 7.5);
-            glow.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.55})`);
+            const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 8.5);
+            glow.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.65})`);
             glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
             ctx.fillStyle = glow;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, 7.5, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, 8.5, 0, Math.PI * 2);
             ctx.fill();
           }
 
@@ -461,7 +470,11 @@ export const ConstellationBackground: React.FC = () => {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 w-full h-full pointer-events-none z-0"
-      style={{ background: '#000000' }}
+      style={{
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: '#000000',
+      }}
     />
   );
 };

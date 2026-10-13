@@ -19,7 +19,6 @@ import { GoalsTargetTab } from '@/components/Goals/GoalsTargetTab';
 import { IosInstallPrompt } from '@/components/PWA/IosInstallPrompt';
 import { LoginForm } from '@/components/Auth/LoginForm';
 import { ConstellationBackground } from '@/components/Auth/ConstellationBackground';
-import { ThemeBackground } from '@/components/Themes/ThemeBackground';
 import {
   DiaryData,
   SubjectItem,
@@ -453,10 +452,9 @@ export default function HomePage() {
     );
   }
 
-  // ОСНОВНОЙ ЭКРАН ДНЕВНИКА (Чистый, стильный темный интерфейс со звездами)
+  // ОСНОВНОЙ ЭКРАН ДНЕВНИКА (Чистый, стильный контрастный темный интерфейс)
   return (
     <div className="relative min-h-screen bg-black text-zinc-100 flex flex-col md:flex-row antialiased selection:bg-zinc-800">
-      <ThemeBackground themeId="space" disableBackground={false} softBlur={true} />
       {/* Десктопный сайдбар */}
       <Sidebar
         activeTab={activeTab}
@@ -468,7 +466,7 @@ export default function HomePage() {
       />
 
       {/* Основная рабочая область */}
-      <main className="flex-1 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-8">
+      <main className="relative z-10 flex-1 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-8">
         {/* Мобильная верхняя панель (Header) */}
         <header className="md:hidden flex items-center justify-between p-4 bg-surface border-b border-surface-border sticky top-0 z-30 select-none">
           <div className="flex items-center gap-2.5">
